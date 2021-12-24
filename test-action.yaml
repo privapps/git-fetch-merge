@@ -9,6 +9,6 @@ jobs:
     steps:
       - uses: privapps/git-fetch-merge@dev-action
         with:
-          target-url: 'https://raw.githubusercontent.com/privapps/git-fetch-merge/data-for-test/data.tar.xz'
+          target-url: 'https://raw.githubusercontent.com/privapps/git-fetch-merge/data-4-test/data.tar.xz'
           extracted-folder: 'data'
           no-trace: false
