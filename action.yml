@@ -1,0 +1,49 @@
+name: 'Git Fetch Merge'
+description: 'Fetch a file, extract it, and merge all content to the current branch'
+inputs:
+  target-url:
+    description: 'Url of the file to fetch'
+    required: true
+  extracted-folder:
+    description: 'The folder after $(tar xf)'
+    required: true
+  no-trace:
+    description: 'Should remove the github workflow file'
+    required: false
+    default: true
+
+runs:
+    using: "composite"
+    steps:
+      - name: fetch
+        run: |
+            curl -sk ${{ inputs.target-url }} -o tmp.tar.xz
+            tar xf tmp.tar.xz
+        shell: bash
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          path: ${{ github.ref }}
+      - name: merge
+        run: |
+            mv ${{ inputs.extracted-folder }}/* ${{ github.ref }}/
+            cd ${{ github.ref }}
+            if [ "${{ inputs.no-trace }}" = true ] ; then
+                rm -fr .github
+            fi
+            git add .
+            git config --local user.email "$bot@users.noreply.github.com"
+            git config --local user.name "bot"
+            if [ "${{ inputs.no-trace }}" = true ] ; then
+                git commit --amend --no-edit
+            else
+                git commit -m 'done'
+            fi
+        shell: bash
+      - name: push
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 240
+          max_attempts: 3
+          retry_on: error
+          command: cd ${{ github.ref }} || echo; git push "https://${GITHUB_ACTOR}:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${{ github.ref }} -f;
