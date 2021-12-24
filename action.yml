@@ -1,0 +1,57 @@
+name: 'Git Fetch Merge'
+description: 'Fetch a file, extract it, and merge all content to the current branch'
+inputs:
+  target-url:
+    description: 'Url of the file to fetch'
+    required: true
+  extracted-folder:
+    description: 'The folder after $(tar xf)'
+    required: true
+
+runs:
+    using: "composite"
+    steps:
+      - name: fetch
+        run: |
+            curl -sk ${{ inputs.target-url }} -o tmp.tar.xz
+            tar xf tmp.tar.xz
+        shell: bash
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          path: ${{ github.ref }}
+      - name: merges
+        run: |
+            LIST=$(ls ${{ inputs.extracted-folder }})
+            _SRC=$(pwd)/${{ inputs.extracted-folder }}
+            echo $LIST ; pwd ; ls
+            cd ${{ github.ref }}
+            git config --local user.email "bot@users.noreply.github.com"
+            git config --local user.name "bot"
+            CBRH=$(git rev-parse --abbrev-ref HEAD)
+
+            rm -fr .github
+            git add .
+            git commit --amend --no-edit
+            git push "https://${GITHUB_ACTOR}:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:$CBRH -f
+
+            for i in ${LIST} ; do 
+                BRH=t__$i
+                git checkout $CBRH | wc -l; git checkout -b $BRH
+                mv $_SRC/$i .
+                rm -fr .github
+                git add $i | wc -l
+                git commit -m 'done' | wc -l
+                git push "https://${GITHUB_ACTOR}:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" $BRH:$BRH -f 
+            done
+            wait
+            echo '--------------------------------------------------------------------------'
+            git checkout $CBRH
+            for i in ${LIST} ; do 
+                BRH=t__$i
+                git merge $BRH -m '.'
+                git push "https://${GITHUB_ACTOR}:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:$CBRH 
+                git push -d origin t__$i &
+            done
+
+        shell: bash
